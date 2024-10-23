@@ -1,0 +1,45 @@
+# Dependencias
+node_modules/
+.pnp
+.pnp.js
+
+# Archivos de entorno
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Directorios de construcción
+dist/
+build/
+out/
+
+# Editor local de configuración
+.vscode/
+.idea/
+
+# Dependencias en MacOS
+.DS_Store
+
+# Dependencias en Windows
+Thumbs.db
+ehthumbs.db
+
+# Archivos temporales del sistema
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Archivos de testing y cobertura
+coverage/
+.nyc_output/
+
+# Archivos generados por servicios CI
+.circleci/
+.gitlab-ci.yml
+.travis.yml
