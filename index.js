@@ -1,6 +1,6 @@
 const { Pool } = require('pg');
 const express = require("express")
-const bcrypt = require("bcrypt") 
+const bcrypt = require("bcrypt")
 require("dotenv").config()
 
 const app = express();
@@ -12,55 +12,81 @@ const pool = new Pool({
 })
 
 app.use(express.json())
-pool.connect()
-  .then(() => {
-    console.log('Conectado a la base de datos');
-  })
-  .catch(err => console.error('Error conectando a la base de datos', err.stack));
-
 
 app.get("/", (req, res) => {
   res.send('¡Hola, bienvenido a la ruta principal!');
-})
-
-app.post("/login", (req, res) => {
-  const {username, password} = req.body  
-
-  const query = "SELECT * FROM username where name = $1 AND password = $2"
-  const values = [username, password]
-
-  pool.query(query, values)
-    .then(result => {
-      if (result.rows.length > 0) {
-        res.json({ success: true, message: "inicio de sesion exitoso"})
-      } else {
-        res.status(401).json({ success: false, message: "Usuario o contraseña incorrecto"})
-      }
-    
+  pool.query("SELECT * FROM username")
+    .then(res => {
+      console.log(res.rows)
     })
-    .catch(err => {
-      console.error("Error al hacer la consulta", err.stack);
-      res.status(500).json({ error: "Error interno del servidor" });
-    });
+    .catch(err => console.error("Error al hacer la consulta", err.stack))
 })
 
-app.post("/signin", async (req, res) => {
-  const {username, email, password} = req.body
+// INICIO DE SESION
+app.post("/login", async (req, res) => {
+  const { mail, password } = req.body
+
+  if (!mail || !password) {
+    return res.status(400).json({ error: "Faltan datos de usuario o contraseña" })
+  }
 
   try {
+    const query = "SELECT * FROM username where mail = $1"
+    const value = [mail];
+
+    const result = await pool.query(query, value);
+
+    if (result.rows.length == 0) {
+      return res.status(401).json({ error: "Usuario o contraseña incorrectos" })
+    }
+
+    const user = result.rows[0]
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      return res.status(401).json({ success: false, message: "Usuario o contraseña incorrectos" });
+    }
+
+    res.json({ success: true, message: "Inicio de sesión exitoso", user: { id: user.id, name: user.name, email: user.mail } });
+  } catch (err) {
+    console.error("Error al hacer la consulta", err.stack);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+})
+
+// REGISTRO DE USUARIOS
+app.post("/signin", async (req, res) => {
+  const { username, mail, password } = req.body
+
+  if (!mail || !password || !username) {
+    return res.status(400).json({ error: "Faltan datos de usuario o contraseña" })
+  }
+
+  try {
+    const mailQuery = "SELECT * FROM username where mail = $1"
+    const userResult = await pool.query(mailQuery, [mail]);
+
+    if (userResult.rows.length >= 1) {
+      return res.status(409).json({ error: "El correo ya esta registrado" })
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const query = "INSERT INTO username(name, mail, password) VALUES($1, $2, $3) RETURNING *"
-    const values = [username, email, hashedPassword]
+    const values = [username, mail, hashedPassword]
 
     const result = await pool.query(query, values)
     if (result.rows.length > 0) {
-      res.json({ success: true, message: "Registro de usuario exitoso" });
+      res.status(201).json({
+        success: true,
+        message: "Registro de usuario exitoso",
+        user: result.rows[0]
+      });
     } else {
-      res.status(401).json({ success: false, message: "Error en el registro" });
+      res.status(500).json({ success: false, message: "Error en el registro" });
     }
   }
-  catch(err) {
+  catch (err) {
     console.error("Error al hacer la consulta", err.stack);
     res.status(500).json({ error: "Error interno del servidor" });
   }
@@ -69,12 +95,6 @@ app.post("/signin", async (req, res) => {
 app.use((req, res) => {
   res.status(404).send("Ruta no encontrada")
 })
-
-pool.query("SELECT * FROM username")
-    .then(res => {
-      console.log(res.rows)
-    })
-    .catch(err => console.error("Error al hacer la consulta", err.stack))
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
