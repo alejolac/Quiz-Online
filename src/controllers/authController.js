@@ -1,29 +1,8 @@
-const { Pool } = require('pg');
-const express = require("express")
+const pool = require('../config/db');
 const bcrypt = require("bcrypt")
-require("dotenv").config()
-
-const app = express();
-const PORT = process.env.PORT
-
-const connectionString = process.env.CONNECTION_STRING
-const pool = new Pool({
-  connectionString: connectionString,
-})
-
-app.use(express.json())
-
-app.get("/", (req, res) => {
-  res.send('¡Hola, bienvenido a la ruta principal!');
-  pool.query("SELECT * FROM username")
-    .then(res => {
-      console.log(res.rows)
-    })
-    .catch(err => console.error("Error al hacer la consulta", err.stack))
-})
 
 // INICIO DE SESION
-app.post("/login", async (req, res) => {
+const login = async (req, res) => {
   const { mail, password } = req.body
 
   if (!mail || !password) {
@@ -52,10 +31,10 @@ app.post("/login", async (req, res) => {
     console.error("Error al hacer la consulta", err.stack);
     res.status(500).json({ error: "Error interno del servidor" });
   }
-})
+}
 
 // REGISTRO DE USUARIOS
-app.post("/signin", async (req, res) => {
+const signin = async (req, res) => {
   const { username, mail, password } = req.body
 
   if (!mail || !password || !username) {
@@ -90,14 +69,6 @@ app.post("/signin", async (req, res) => {
     console.error("Error al hacer la consulta", err.stack);
     res.status(500).json({ error: "Error interno del servidor" });
   }
-})
+}
 
-app.use((req, res) => {
-  res.status(404).send("Ruta no encontrada")
-})
-
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-});
-
-
+module.exports = { login, signin }; 
