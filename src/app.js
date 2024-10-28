@@ -9,16 +9,16 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 
 // RUTAS DE LOGICA DE QUIZ
-//app.use("/api/quiz", quizRoutes);
+app.use("/api/quiz", quizRoutes);
 
 // RUTAS PRINCIPAL
 app.get("/", (req, res) => {
     res.send("¡Hola, bienvenido a la ruta principal!");
 });
-  
+
 // Manejo de errores 404
 app.use((req, res) => {
     res.status(404).send("Ruta no encontrada");
 });
-  
+
 module.exports = app;
