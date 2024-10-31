@@ -88,10 +88,35 @@ const getQuizData = async (req, res) => {
         const result = await pool.query(query, [quizId]);
 
         if (result.rows.length == 0) {
-            return res.status(404).json({ success: false, message: "No hay quizes de esa categoria" })
+            return res.status(404).json({ success: false, message: "No existe un quiz con ese ID" })
         }
+        const questions = result.rows.reduce((acc, row) => {
+            const { question_id, question_content, answer_id, answer_content, is_correct } = row;
+            
+            // Busca si la pregunta ya está en el array de resultado
+            let question = acc.find(q => q.question_id === question_id);
 
-        res.status(200).json({ success: true, message: result.rows })
+            // Si la pregunta no existe en el array, la crea y agrega la primera respuesta
+            if (!question) {
+                question = {
+                    question_id,
+                    question_content,
+                    answers: []
+                };
+                acc.push(question);
+            }
+
+            // Agrega la respuesta actual a la lista de respuestas de la pregunta
+            question.answers.push({
+                answer_id,
+                answer_content,
+                is_correct
+            });
+
+            return acc;
+        }, []);
+
+        res.status(200).json({ success: true, message: questions })
 
     } catch (err) {
         console.error("Error al hacer la consulta", err.stack);
