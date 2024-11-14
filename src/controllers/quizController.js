@@ -164,8 +164,9 @@ const addQuiz = async (req, res) => {
     const bodyData = req.body;
 
     if (!bodyData.quiz.name) {
-        return res.status(400).json({ success: false, message: "El titulo del quiz es requerido" });
+        return res.status(400).json({ success: false, message: "El título del quiz es requerido" });
     }
+
     const client = await pool.connect();  // Adquirimos un cliente para la transacción
 
     try {
@@ -195,38 +196,41 @@ const addQuiz = async (req, res) => {
         const queryCatQuiz = "INSERT INTO categories_quizzes (quiz_id, category_id) VALUES ($1, $2) RETURNING *";
         const resultCatQuiz = await client.query(queryCatQuiz, [quizId, bodyData.categories.id]);
 
-        // Si ambas inserciones fueron exitosas, hacemos commit
-
+        // Verificamos si hay preguntas
         if (!bodyData.questions || bodyData.questions.length === 0) {
             return res.status(400).json({ success: false, message: "Se necesita al menos una pregunta" });
         }
 
+        // Insertamos las preguntas
         const queryQuestion = "INSERT INTO questions (quiz_id, content) VALUES ";
         const questionValues = bodyData.questions.map(q => [quizId, q.content]);
 
-        // Crear la parte de la consulta con el formato adecuado
         const queryString = questionValues
             .map((_, index) => `($${index * 2 + 1}, $${index * 2 + 2})`)
             .join(", ");
-
-        // Aplanar el arreglo de valores para que coincidan con los parámetros de la consulta
         const queryParams = questionValues.flat();
         const resultQuestions = await client.query(queryQuestion + queryString + " RETURNING *", queryParams);
 
+        // Verificamos si hay respuestas para la primera pregunta
         if (!bodyData.questions[0].answers || bodyData.questions[0].answers.length === 0) {
             return res.status(400).json({ success: false, message: "Se necesita al menos una respuesta" });
         }
 
-        const queryAnswers = "INSERT INTO answers (question_id, content, id_correct) VALUES "
+        // Insertamos las respuestas para cada pregunta
+        const queryAnswers = "INSERT INTO answers (question_id, content, is_correct) VALUES ";
+        for (const [index, question] of resultQuestions.rows.entries()) {
+            const answersValues = bodyData.questions[index].answers.map(answer => [question.id, answer.content, answer.is_correct]);
 
-        console.log(resultQuestions.rows);
-        for (const val of resultQuestions.rows) {
-            
+            const answersQueryString = answersValues
+                .map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`)
+                .join(", ");
+            const answersQueryParams = answersValues.flat();
+
+            const resultAnswers = await client.query(queryAnswers + answersQueryString + " RETURNING *", answersQueryParams);
+            console.log(resultAnswers.rows);  // Verifica las respuestas insertadas
         }
 
-
-
-        await client.query('COMMIT');
+        await client.query('COMMIT'); 
 
         res.status(201).json({
             success: true,
@@ -245,6 +249,7 @@ const addQuiz = async (req, res) => {
         client.release();  // Liberamos el cliente después de terminar
     }
 };
+
 
 
 module.exports = { getAllQuiz, getAllCategories, getAllQuizesCat, getQuizData, addCategories, addQuiz };
